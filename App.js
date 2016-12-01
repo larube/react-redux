@@ -34,7 +34,6 @@ const todos = (state = [], action) => {
 
 const visibilityFilter = (state = 'SHOW_ALL', action) => {
   switch (action.type) {
-
     case 'SET_VISIBILITY_FILTER':
       return action.filter;
     default:
@@ -43,7 +42,7 @@ const visibilityFilter = (state = 'SHOW_ALL', action) => {
 }
 
 
-const todoApp =combineReducers({
+const todoApp = combineReducers({
   todos,
   visibilityFilter
 });
@@ -68,77 +67,37 @@ const getVisibleTodos = (todos, filter) => {
   }
 }
 
-class TodoApp extends React.Component {
+const TodoApp = ({ todos, visibilityFilter }) => {
+  return (
+    <div>
 
-  constructor(props) {
-    super (props);
-    this.addTodo = this.addTodo.bind(this);
-  }
+      <AddTodo onAddClick={(text) => {
+        store.dispatch({
+          type: 'ADD_TODO',
+          text: text,
+          completed: false,
+          id: idCounter++
+        });
+      }} />
 
-  addTodo () {
-    const todoText = ReactDOM.findDOMNode(this.refs.addTodo).value;
-    store.dispatch({
-      type: 'ADD_TODO',
-      text: todoText,
-      completed: false,
-      id: idCounter++
-    });
-    ReactDOM.findDOMNode(this.refs.addTodo).value = '';
-  }
+      <h1>Ma Liste</h1>
 
-  render () {
+      <TodoList todos={getVisibleTodos(todos, visibilityFilter)}
+        onTodoClick={(id) =>
+          store.dispatch({
+            type: 'TOGGLE_TODO',
+            id: id
+          })
+        }
+      />
 
-    const { todos, visibilityFilter } = this.props;
+      <Footer />
 
-    const visibleTodos = getVisibleTodos(todos, visibilityFilter);
-
-    return (
-      <div>
-        <input type='text' ref='addTodo' />
-      <button onClick={this.addTodo}>Ajoute une tâche, bâtard</button>
-        <h1>Ma Liste</h1>
-        <TodoList todos={visibleTodos}
-          onTodoClick={(id) =>
-            store.dispatch({
-              type: 'TOGGLE_TODO',
-              id: id
-            })
-          }
-        />
-
-        <p>Show:
-          { ' ' }
-          <FilerLink
-            filter='SHOW_ALL'
-            currentFilter={visibilityFilter}
-          >
-            All
-          </FilerLink>
-            { ' ' }
-          <FilerLink
-            filter='SHOW_ACTIVE'
-            currentFilter={visibilityFilter}
-          >
-            Active
-          </FilerLink>
-            { ' ' }
-          <FilerLink
-            filter='SHOW_COMPLETED'
-            currentFilter={visibilityFilter}
-          >
-            Completed
-          </FilerLink>
-        </p>
-      </div>
-    )
-  }
+    </div>
+  );
 }
 
-const TodoElem = ({
-  onClick,
-  completed,
-  text
-}) => {
+const TodoElem = ({ onClick, completed, text }) => {
   return (
     <li
       onClick={onClick}
@@ -148,16 +107,13 @@ const TodoElem = ({
   )
 }
 
-const TodoList = ({
-  todos,
-  onTodoClick
-}) => {
+const TodoList = ({ todos, onTodoClick }) => {
   return (
     <ul>
       {todos.map((todo) => {
         return <TodoElem
-          key={todo.id}
-          {...todo}
+          key={ todo.id }
+          { ...todo }
           onClick={() => onTodoClick(todo.id)}
           />
       })}
@@ -165,32 +121,106 @@ const TodoList = ({
   );
 }
 
-class FilerLink extends React.Component {
-  constructor(props) {
+const AddTodo = ({ onAddClick }) => {
+  let input;
+  return (
+
+    <div>
+      <input type='text' ref={(node) => {
+        input = node;
+      }}/>
+      <button onClick={() => {
+        onAddClick(input.value)
+        input.value = '';
+      }}>Ajoute une tâche, bâtard</button>
+    </div>
+
+  );
+}
+
+// visibilityFilter={visibilityFilter}
+// onFilterClick={ filter => {
+//   store.dispatch({
+//     type: 'SET_VISIBILITY_FILTER',
+//     filter
+//   })
+// }}
+
+const Footer = ({ visibilityFilter, onFilterClick }) => {
+  return (
+    <p>Show:
+      { ' ' }
+      <FilterLink
+        filter='SHOW_ALL'
+      >
+        All
+      </FilterLink>
+        { ' ' }
+      <FilterLink
+        filter='SHOW_ACTIVE'
+      >
+        Active
+      </FilterLink>
+        { ' ' }
+      <FilterLink
+        filter='SHOW_COMPLETED'
+      >
+        Completed
+      </FilterLink>
+    </p>
+  );
+}
+
+const Link = ({ active, children, onClick }) => {
+  if (active) {
+    return (
+      <span>{children}</span>
+    )
+  }
+  return (
+    <a href="#" onClick={(e) => {
+      e.preventDefault();
+      onClick();
+    }}>
+      {children}
+    </a>
+  )
+}
+
+class FilterLink extends React.Component {
+
+  constructor (props) {
     super(props);
-    this.setVisibilityFiler = this.setVisibilityFiler.bind(this);
+    this.state = store.getState();
   }
 
-  setVisibilityFiler (e) {
-    e.preventDefault();
-    store.dispatch({
-      type: 'SET_VISIBILITY_FILTER',
-      filter: this.props.filter
-    })
+  componentDidMount () {
+    this.unsuscribe = store.subscribe(() => {
+      this.forceUpdate();
+    });
+  };
+
+  componentWillUnmount() {
+    this.unsuscribe();
   }
 
   render () {
-    if (this.props.filter === this.props.currentFilter) {
-      return (
-        <span>{this.props.children}</span>
-      )
-    }
     return (
-      <a href="#" onClick={this.setVisibilityFiler}>
-        {this.props.children}
-      </a>
-    )
-  };
+      <Link
+        active={
+          this.props.filter === this.state.visibilityFilter
+        }
+        onClick={() =>
+          store.dispatch({
+            type: 'SET_VISIBILITY_FILTER',
+            filter: this.props.filter
+          })
+        }
+       >
+       {this.props.children}
+      </Link>
+    );
+  }
 }
 
 const renderApp = () => {
